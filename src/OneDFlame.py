@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 import cantera as ct
 import os
 import Global

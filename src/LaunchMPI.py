@@ -96,7 +96,7 @@ if __name__ == '__main__':
         # for species in up.species_exclude_zero:
         #     species_index_exclude_zero.append(gas.species_index(species))
 
-        species_exclude_all = up.species_exclude_init + up.species_exclude_zero
+        species_exclude_all = up.species_exclude_init # + up.species_exclude_zero
         species_index_exclude_all = []
         for species in species_exclude_all:
             species_index_exclude_all.append(gas.species_index(species))

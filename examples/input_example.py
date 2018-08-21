@@ -5,7 +5,7 @@ directory = 'FLAMES'
 mechanism = 'kin20285-chem.cti'
 
 # Species to exclude (NOx chemistry for example)
-species_exclude = ()
+species_exclude_init = ()
 
 # Major species, not in the optimization loop
 species_major = ('N2', 'AR', 'CH3OCH3', 'CO2', 'H2O',
