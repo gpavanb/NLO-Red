@@ -1,66 +1,165 @@
 import numpy as np
 import Global
 import logging
+import sys
 import Parallelism as Par
 
 
-def getQuantityCase(case, species_index_exclude, species_index_damp, x):
-    case.storeMultiplier(species_index_exclude, species_index_damp, x)
+def getQuantityCase(case, species_index_valid, x):
+    case.storeMultiplier(species_index_valid, x)
     return case.getQuantity()
 
-
-def eval_f(x, user_data=None):
+def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
+    num_valid = Global.params.num_valid
+    x = xf[0:num_valid]
     costfunc = 2.0 * np.sum(x*(1-x)) + np.sum(x*x)
     return costfunc
-
 
 def eval_grad_f(x, user_data=None):
     logging.debug('Grad F evaluation')
     noptim = Global.params.noptim
+    num_valid = Global.params.num_valid
     grad_f = 2.0 * (np.ones(noptim)-2*x) + 2*x
+    grad_f[num_valid:] = 0.0
     return grad_f
 
-
-def eval_g(x, user_data=None):
+def eval_g(xf, user_data=None):
     logging.debug('G evaluation')
     # Retrieve global parameters
-    species_index_damp = Global.params.species_index_damp
-    species_index_exclude = Global.params.species_index_exclude_all
-    cases = Global.params.cases
+    # species_index_damp = Global.params.species_index_damp
+    # species_index_exclude = Global.params.species_index_exclude_all
+    # species_index_valid = Global.params.species_index_valid    
+    mw_valid_vec = Global.params.mw_valid_vec
+    h_valid_vec = Global.params.h_valid_vec
+    c_valid_vec = Global.params.c_valid_vec
+    num_valid = Global.params.num_valid
+
+    quantities = []
     quantityrefs = Global.params.quantityrefs
+  
+    # Lightweight constraints
+    beta = xf[0:num_valid]
+    x = xf[num_valid:]
+    # MW
+    mw = np.sum(mw_valid_vec*beta*x)
+    quantities.append(mw)
 
-    # Building Tasks
-    tasks = []
-    taskindex = -1
-    for case in cases:
-        taskindex += 1
-        tasks.append((case, species_index_exclude,
-                      species_index_damp, x, taskindex))
+    # HC
+    n_h = np.sum(h_valid_vec*beta*x)
+    n_c = np.sum(c_valid_vec*beta*x)
+    hc = n_h/n_c
+    quantities.append(hc)
 
-    # Retrieve array of results
-    quantities = np.array(Par.tasklaunch(tasks))
+    # Sum = 1
+    x_sum = np.sum(beta*x)
+    quantities.append(x_sum) 
+
+    # # Asynchronous constraints
+    # cases = Global.params.cases
+    # quantityrefs = Global.params.quantityrefs
+
+    # # Building Tasks
+    # tasks = []
+    # taskindex = -1
+    # for case in cases:
+    #     taskindex += 1
+    #     tasks.append((case, species_index_valid, x, taskindex))
+
+    # # Retrieve array of results
+    # quantities = np.array(Par.tasklaunch(tasks))
     return np.abs(quantities - quantityrefs)
 
-
-def gradient_constraints(x):
+def gradient_constraints(xf):
     logging.debug('Grad G evaluation')
     # Retrieve global variables
     noptim = Global.params.noptim
     cases = Global.params.cases
-    species_index_damp = Global.params.species_index_damp
-    species_index_exclude = Global.params.species_index_exclude_all
+    # species_index_damp = Global.params.species_index_damp
+    # species_index_exclude = Global.params.species_index_exclude_all
+    # species_index_valid = Global.params.species_index_valid    
     quantityrefs = Global.params.quantityrefs
     tolerances = Global.params.tolerances
-    species_damp = Global.params.species_damp
+    # species_damp = Global.params.species_damp
+    mw_valid_vec = Global.params.mw_valid_vec
+    h_valid_vec = Global.params.h_valid_vec
+    c_valid_vec = Global.params.c_valid_vec
+    num_valid = Global.params.num_valid
+    num_lwcon = Global.params.num_lwcon
 
-    # Building tasks
-    tasks = []
-    taskindex = -1
-    for case in cases:
-        taskindex += 1
-        tasks.append((case, species_index_exclude,
-                      species_index_damp, x, taskindex))
+    # Grad G for lightweight constraints
+    # TODO : Do this analytically
+
+    # Compute unperturbed
+    x = np.array(xf)
+    cur_res = []
+
+    # Lightweight constraints
+    beta = xf[0:num_valid]
+    x = xf[num_valid:]
+    # MW
+    mw = np.sum(mw_valid_vec*beta*x)
+    cur_res.append(mw)
+
+    # HC
+    n_h = np.sum(h_valid_vec*beta*x)
+    n_c = np.sum(c_valid_vec*beta*x)
+    hc = n_h/n_c
+    cur_res.append(hc)
+
+    # Sum = 1
+    x_sum = np.sum(beta*x)
+    cur_res.append(x_sum)
+
+    initquantities = cur_res
+
+    # Compute perturbations
+    perturbquantities = np.empty((num_lwcon,0),float)
+    step = 1e-2
+    results = []
+    for kx in range(noptim):
+        xperturb = np.array(xf)
+        xperturb[kx] += step
+       
+        cur_res = []
+
+        # Lightweight constraints
+        beta = xperturb[0:num_valid]
+        x = xperturb[num_valid:]
+        # MW
+        mw = np.sum(mw_valid_vec*beta*x)
+        cur_res.append(mw)
+
+        # HC
+        n_h = np.sum(h_valid_vec*beta*x)
+        n_c = np.sum(c_valid_vec*beta*x)
+        hc = n_h/n_c
+        cur_res.append(hc)
+
+        # Sum = 1
+        x_sum = np.sum(beta*x)
+        cur_res.append(x_sum)
+
+        cur_res = np.transpose(np.atleast_2d(cur_res))
+
+        perturbquantities = np.hstack((perturbquantities,cur_res))
+
+    # Collecting results
+    stack = np.empty((0,noptim),float)
+    for kcase in range(num_lwcon):
+        grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
+                - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
+        stack = np.vstack((stack, grad))
+
+    return stack
+    # sys.exit(0)
+
+    # # Building tasks
+    # tasks = []
+    # taskindex = -1
+    # for case in cases:
+    #     taskindex += 1
+    #     tasks.append((case, species_index_valid, x, taskindex))
 
     # Perturbed quantities
     step = 1e-2
@@ -69,8 +168,7 @@ def gradient_constraints(x):
             xperturb = np.array(x)
             xperturb[kx] += step
             taskindex += 1
-            tasks.append((case, species_index_exclude,
-                          species_index_damp, xperturb, taskindex))
+            tasks.append((case, species_index_valid, xperturb, taskindex))
 
     # Collecting gradient results
     logging.debug('Collecting Grad G results')
@@ -79,21 +177,13 @@ def gradient_constraints(x):
     initquantities = results[0:len(cases)]
     perturbquantities = results[len(cases):].reshape((len(cases), noptim))
 
-    stack = []
     for kcase, case in enumerate(cases):
         grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
         stack = np.hstack((stack, grad))
 
-    # Debug information
-    logging.info('Gradient G done')
-    logging.debug('x')
-    logging.debug(str(x))
-    logging.debug('sum(x)')
-    logging.debug(str(np.sum(x)))
-
-
     # Logging info
+    logging.info('Gradient G done')
     logging.info('Current x')
     logging.info(str(x).replace('  ', ','))
     logging.info('Current sum(x)')
@@ -111,14 +201,15 @@ def gradient_constraints(x):
         logging.info('Current solution satisfies constraint')
         logging.info('Current vector')
         logging.info(str(x).replace('  ', ','))
-        logging.info('Number of eliminated species')
-        count = np.where(x < Global.params.threshold)
-        logging.info(str(len(count[0])))
-        logging.info('List of eliminated species')
-        for kdamp in range(len(species_damp)):
-            if x[kdamp] < Global.params.threshold:
-                logging.info(
-                    Global.gas.species_names[species_index_damp[kdamp]] + ' ' + str(x[kdamp]))
+        # TODO : Modify debugging for eliminated species
+        # logging.info('Number of eliminated species')
+        # count = np.where(x < Global.params.threshold)
+        # logging.info(str(len(count[0])))
+        # logging.info('List of eliminated species')
+        # for kdamp in range(len(species_damp)):
+        #     if x[kdamp] < Global.params.threshold:
+        #         logging.info(
+        #             Global.gas.species_names[species_index_damp[kdamp]] + ' ' + str(x[kdamp]))
     else:
         logging.info('Current solution does not satisfy constraint')
         logging.info('Current vector')

@@ -37,9 +37,10 @@ def slave_execution():
         # Take actions
         if tag == tags.START:
                 # Start new tasks
+            # TODO : Generalize to arbitrary argument list
             result = OptimFunctions.getQuantityCase(
-                task[0], task[1], task[2], task[3])
-            comm.send([task[4], result], dest=0, tag=tags.DONE)
+                task[0], task[1], task[2])
+            comm.send([task[3], result], dest=0, tag=tags.DONE)
 
         elif tag == tags.EXIT:
             # Exit signal

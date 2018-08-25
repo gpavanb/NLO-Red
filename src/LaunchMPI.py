@@ -43,14 +43,6 @@ if __name__ == '__main__':
     # Cantera gas phase
     Global.gas = ct.Solution(up.mechanism)
 
-    # Specific storage for flame computations
-    Global.nflames = len(up.P_fl)*len(up.T_fl)*len(up.phi_fl)
-    Global.flame_inits = [False for ii in range(Global.nflames)]
-    Global.sims = [False for ii in range(Global.nflames)]
-    Global.gases = [False for ii in range(Global.nflames)]
-    Global.directory = up.directory
-    Global.mechanism = up.mechanism
-
     # Define MPI message tags
     tags = Par.enum('READY', 'DONE', 'EXIT', 'START', 'SLEEP', 'WAKEUP')
 
@@ -67,6 +59,7 @@ if __name__ == '__main__':
         # Slave Process (waiting for task from Master)
         Slave.slave_execution()
     else:
+        print "Rank is : ", rank
         # Main Process
         if not os.path.exists(up.directory):
             os.makedirs(up.directory)
@@ -84,121 +77,136 @@ if __name__ == '__main__':
         # Initializing gas phase and damping
         gas = Global.gas
 
-        reactants = gas.reactant_stoich_coeffs()
-        products = gas.product_stoich_coeffs()
+        # Load list of valid species
+        valid_species = [line.rstrip(' \n') for line in open(up.spec_list)]
+        print valid_species
+        num_valid = len(valid_species)
+        print num_valid
+
+        logging.info('Species for optimization: %s' % str(num_valid))
+        # Indicator variable + Mole fractions
+        noptim = num_valid + num_valid
+        logging.info('Number of variables for optimization: %s' % noptim)
 
         # Species index build
-        species_index_exclude_init = []
-        for species in up.species_exclude_init:
-            species_index_exclude_init.append(gas.species_index(species))
+        # species_index_exclude_init = []
+        # for species in up.species_exclude_init:
+        #     species_index_exclude_init.append(gas.species_index(species))
 
-        # species_index_exclude_zero = []
-        # for species in up.species_exclude_zero:
-        #     species_index_exclude_zero.append(gas.species_index(species))
+        # # species_index_exclude_zero = []
+        # # for species in up.species_exclude_zero:
+        # #     species_index_exclude_zero.append(gas.species_index(species))
 
-        species_exclude_all = up.species_exclude_init # + up.species_exclude_zero
-        species_index_exclude_all = []
-        for species in species_exclude_all:
-            species_index_exclude_all.append(gas.species_index(species))
+        # # Create excluded species list
+        # species_exclude_all = up.species_exclude_init 
+        # species_index_exclude_all = []
+        # for species in species_exclude_all:
+        #     species_index_exclude_all.append(gas.species_index(species))
 
-        species_damp_init = ()
-        for species in gas.species_names:
-            if not(species in up.species_exclude_init) and not(species in up.species_major):
-                species_damp_init = species_damp_init + (species,)
-        species_index_damp_init = []
-        for species in species_damp_init:
-            species_index_damp_init.append(gas.species_index(species))
+        # species_damp_init = ()
+        # for species in gas.species_names:
+        #     if not(species in up.species_exclude_init) and not(species in up.species_major):
+        #         species_damp_init = species_damp_init + (species,)
+        # species_index_damp_init = []
+        # for species in species_damp_init:
+        #     species_index_damp_init.append(gas.species_index(species))
 
-        species_damp = ()
-        for species in gas.species_names:
-            if not(species in species_exclude_all) and not(species in up.species_major):
-                species_damp = species_damp + (species,)
-        species_index_damp = []
-        for species in species_damp:
-            species_index_damp.append(gas.species_index(species))
-
-        logging.info('Species for optimization: %s' % str(species_damp))
-        noptim = len(species_damp)
-        logging.info('Number of variables for optimization: %s' % noptim)
+        # species_damp = ()
+        # for species in gas.species_names:
+        #     if not(species in species_exclude_all) and not(species in up.species_major):
+        #         species_damp = species_damp + (species,)
+        # species_index_damp = []
+        # for species in species_damp:
+        #     species_index_damp.append(gas.species_index(species))
 
         cases = []
         quantityrefs = []
         tolerances = []
 
-        # Constructing flame cases
-        case_id = -1
-        flametab = []
-        for P in up.P_fl:
-            for T in up.T_fl:
-                for phi in up.phi_fl:
-                    case_id += 1
-                    cur = Flame.OneDFlame(
-                        T, P, phi, up.fuel, up.n2_o2_ratio, case_id)
-                    cur.case_id = case_id
-                    cur.firstflag = True
-                    cur.isflame = True
-                    flametab.append(cur)
-                    cases.append(cur)
-                    tolerances.append(up.tolerance_fl)
-                    cur.partitionid = case_id
+        # Read reference composition
+        test_comp = up.test_comp
+        palette = up.palette       
+ 
+        # Lightweight constraints reference quantities
+        num_lwcon = 3
+        # MW
+        mw_vec = []
+        mw_valid_vec = []
+        mw_full_vec = gas.molecular_weights
+        # Reference MW
+        for species in palette:
+            sp_index = gas.species_index(species)
+            mw_vec.append(mw_full_vec[sp_index])
+        quantityrefs.append(np.dot(mw_vec,test_comp))
+        # Valid species MW
+        for species in valid_species:
+            sp_index = gas.species_index(species)
+            mw_valid_vec.append(mw_full_vec[sp_index])
+        tolerances.append(up.tolerance_mw) 
 
-        # Group procs in for flames
-        npartition = len(flametab)
-        procs = range(0, comm.size-1)
-        partitioning = []
-        counting = -1
-        for k in range(len(procs)):
-            if Global.nflames > 0:
-                # Assign flames only every two cores
-                # TODO parameter for this
-                if k % 2 == 0:
-                    counting += 1
-                    partitioning.append([counting % (npartition)])
-                else:
-                    partitioning.append([-1])
-            else:
-                partitioning.append([-1])
+        # HC
+        h_vec = []
+        c_vec = []
+        h_valid_vec = []
+        c_valid_vec = []
+        # Reference HC
+        for species in palette:
+            sp_index = gas.species_index(species)
+            h_vec.append(gas.n_atoms(sp_index,'H'))
+            c_vec.append(gas.n_atoms(sp_index,'C'))
+        target_hc = np.dot(h_vec,test_comp)/np.dot(c_vec,test_comp)
+        quantityrefs.append(target_hc)
+        # Valid species HC
+        for species in valid_species:
+            sp_index = gas.species_index(species)
+            h_valid_vec.append(gas.n_atoms(sp_index,'H'))
+            c_valid_vec.append(gas.n_atoms(sp_index,'C'))
+        tolerances.append(up.tolerance_hc)
 
-        logging.debug('Partitioning: %s' % str(partitioning))
+        # Sum = 1
+        quantityrefs.append(1.0)
+        # Sum tolerance is zero since equality constraint
+        tolerances.append(0.0) 
 
-        Global.partitioning = partitioning
+        # # Constructing AI cases
+        # nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
+        # for P in up.P_ai:
+        #     for T in up.T_ai:
+        #         for phi in up.phi_ai:
+        #             case_id += 1
+        #             cur = RCV.ReactorCstVolume(
+        #                 Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
+        #             cur.case_id = case_id
+        #             cur.isflame = False
+        #             cases.append(cur)
+        #             tolerances.append(up.tolerance_ai)
 
-        # Constructing AI cases
-        nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
-        for P in up.P_ai:
-            for T in up.T_ai:
-                for phi in up.phi_ai:
-                    case_id += 1
-                    cur = RCV.ReactorCstVolume(
-                        Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
-                    cur.case_id = case_id
-                    cur.isflame = False
-                    cases.append(cur)
-                    tolerances.append(up.tolerance_ai)
+        # # Computing reference cases
+        # tasks = []
+        # taskindex = -1
+        # for case in cases:
+        #     taskindex += 1
+        #     # TODO : Modify this for new problem
+        #     tasks.append((case, species_index_valid, np.ones(len(species_index_valid)), taskindex))
+        # quantityrefs = np.array(Par.tasklaunch(tasks))
 
-        # Computing reference cases
-        tasks = []
-        taskindex = -1
-        for case in cases:
-            taskindex += 1
-            tasks.append((case, species_index_exclude_init,
-                          species_index_damp_init,
-                          np.ones(len(species_index_damp_init)), taskindex))
-        quantityrefs = np.array(Par.tasklaunch(tasks))
-        for case in flametab:
-            case.firstflag = False
-
+        # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
 
         # TODO remove these global variables
         params = Param.Parameters()
         params.cases = cases
-        params.species_index_damp = species_index_damp
-        params.species_index_exclude_all = species_index_exclude_all
+        # params.species_index_damp = species_index_damp
+        # params.species_index_exclude_all = species_index_exclude_all
+        params.num_valid = num_valid
+        params.mw_valid_vec = mw_valid_vec
+        params.h_valid_vec = h_valid_vec
+        params.c_valid_vec = c_valid_vec
         params.noptim = noptim
+        params.num_lwcon = num_lwcon
         params.quantityrefs = np.array(quantityrefs)
         params.tolerances = tolerances
-        params.species_damp = species_damp
+        # params.species_damp = species_damp
         params.threshold = up.threshold
         Global.params = params
 
@@ -209,15 +217,18 @@ if __name__ == '__main__':
         nvar = noptim  # Number of variables
         x_L = np.ones(nvar)*0.0  # Vector of lower bounds
         x_U = np.ones(nvar)*1.0  # Vector of upper bounds
-        ncon = len(cases)  # Number of constraints
+        ncon = len(cases) + num_lwcon  # Number of constraints
         logging.info('Number of constraints: %i' % ncon)
 
         # Building lower and upper bound vectors of tolerance
-        g_L = -5.0 * np.ones(len(cases))
+        # Dummy value since constraints are positive 
+        g_L = -5.0 * np.ones(ncon)
         g_U = tolerances
 
+        # Non-zero Jacobian elements
         nnzj = ncon * noptim
-        nnzh = 64000
+        # Non-zero Hessian (set to 0 since not evaluated)
+        nnzh = 0
 
         # Initial coefficient vector
         if hasattr(up, 'x0'):
@@ -225,17 +236,19 @@ if __name__ == '__main__':
             logging.info('Initializing x0 from input file')
         else:
             x0 = np.ones(noptim)
+            x0[num_valid+1:] = 0.0
             logging.info('Initializing x0 from one')
 
         if not(len(x0) == noptim):
             logging.error('Wrong length for x0')
             sys.exit(0)
 
-        logging.info('Initial x0 vector')
-        for k in range(len(species_damp)):
-            logging.info('%s %s' %
-                         (gas.species_names[species_index_damp[k]], x0[k]))
-        logging.info('x0 passed initial: %s' % str(x0))
+        # TODO : Log initial x0
+        # logging.info('Initial x0 vector')
+        # for k in range(len(species_damp)):
+        #     logging.info('%s %s' %
+        #                  (gas.species_names[species_index_damp[k]], x0[k]))
+        # logging.info('x0 passed initial: %s' % str(x0))
 
         type_calc = 'OPT'
         if hasattr(up, 'type_calc'):
@@ -247,15 +260,34 @@ if __name__ == '__main__':
             nlp = pyipopt.create(nvar, x_L, x_U, ncon, g_L, g_U, nnzj, nnzh,
                                  OptFn.eval_f, OptFn.eval_grad_f, OptFn.eval_g, eval_jac_g_wrapper)
 
+            nlp.str_option('derivative_test','first-order')
+            nlp.num_option('derivative_test_tol',1e-2)
+
             logging.info('Starting optimization')
-            x, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
+            xf, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
             nlp.close()
             logging.info('End optimization')
 
-            logging.info('Final solution: %s' % x)
-            for k in range(len(species_damp)):
-                logging.info('%s %s' %
-                             (gas.species_names[species_index_damp[k]], x[k]))
+            # MW
+            beta = xf[0:num_valid]
+            x = xf[num_valid:]
+            mw = np.sum(mw_valid_vec*beta*x)
+            logging.info('Final MW: %s' % mw) 
+            
+            # HC
+            n_h = np.sum(h_valid_vec*beta*x)
+            n_c = np.sum(c_valid_vec*beta*x)
+            hc = n_h/n_c
+            logging.info('Final HC: %s' % hc) 
+
+            # Sum = 1
+            x_sum = np.sum(beta*x)
+            logging.info('Final sum: %s' % x_sum) 
+ 
+            # Log final solution
+            for k in range(num_valid):
+                logging.info('%s %s %s' %
+                            (valid_species[k], beta[k], x[k]))
 
         elif type_calc == 'VAL':
             # Validation case
