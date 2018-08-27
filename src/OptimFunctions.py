@@ -11,17 +11,16 @@ def getQuantityCase(case, species_index_valid, x):
 
 def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
-    num_valid = Global.params.num_valid
-    x = xf[0:num_valid]
+    noptim = Global.params.noptim
+    x = np.array(xf)
     costfunc = 2.0 * np.sum(x*(1-x)) + np.sum(x*x)
     return costfunc
 
-def eval_grad_f(x, user_data=None):
+def eval_grad_f(xf, user_data=None):
     logging.debug('Grad F evaluation')
     noptim = Global.params.noptim
-    num_valid = Global.params.num_valid
+    x = np.array(xf)
     grad_f = 2.0 * (np.ones(noptim)-2*x) + 2*x
-    grad_f[num_valid:] = 0.0
     return grad_f
 
 def eval_g(xf, user_data=None):
@@ -39,21 +38,21 @@ def eval_g(xf, user_data=None):
     quantityrefs = Global.params.quantityrefs
   
     # Lightweight constraints
-    beta = xf[0:num_valid]
-    x = xf[num_valid:]
+    x = np.array(xf)
+    x_last = 1.0 - np.sum(x)
+    x = np.append(x,x_last)
     # MW
-    mw = np.sum(mw_valid_vec*beta*x)
+    mw = np.sum(mw_valid_vec*x)
     quantities.append(mw)
 
     # HC
-    n_h = np.sum(h_valid_vec*beta*x)
-    n_c = np.sum(c_valid_vec*beta*x)
+    n_h = np.sum(h_valid_vec*x)
+    n_c = np.sum(c_valid_vec*x)
     hc = n_h/n_c
     quantities.append(hc)
 
-    # Sum = 1
-    x_sum = np.sum(beta*x)
-    quantities.append(x_sum) 
+    # Sum constraint
+    quantities.append(np.sum(x))
 
     # # Asynchronous constraints
     # cases = Global.params.cases
@@ -91,25 +90,24 @@ def gradient_constraints(xf):
     # TODO : Do this analytically
 
     # Compute unperturbed
-    x = np.array(xf)
     cur_res = []
 
     # Lightweight constraints
-    beta = xf[0:num_valid]
-    x = xf[num_valid:]
+    x = np.array(xf)
+    x_last = 1.0 - np.sum(x)
+    x = np.append(x,x_last)
     # MW
-    mw = np.sum(mw_valid_vec*beta*x)
+    mw = np.sum(mw_valid_vec*x)
     cur_res.append(mw)
 
     # HC
-    n_h = np.sum(h_valid_vec*beta*x)
-    n_c = np.sum(c_valid_vec*beta*x)
+    n_h = np.sum(h_valid_vec*x)
+    n_c = np.sum(c_valid_vec*x)
     hc = n_h/n_c
     cur_res.append(hc)
 
-    # Sum = 1
-    x_sum = np.sum(beta*x)
-    cur_res.append(x_sum)
+    # Sum constraint
+    cur_res.append(np.sum(x))
 
     initquantities = cur_res
 
@@ -120,25 +118,25 @@ def gradient_constraints(xf):
     for kx in range(noptim):
         xperturb = np.array(xf)
         xperturb[kx] += step
+        x_last = 1.0 - np.sum(xperturb)
+        xperturb = np.append(xperturb,x_last)
        
         cur_res = []
 
         # Lightweight constraints
-        beta = xperturb[0:num_valid]
-        x = xperturb[num_valid:]
+        x = xperturb
         # MW
-        mw = np.sum(mw_valid_vec*beta*x)
+        mw = np.sum(mw_valid_vec*x)
         cur_res.append(mw)
 
         # HC
-        n_h = np.sum(h_valid_vec*beta*x)
-        n_c = np.sum(c_valid_vec*beta*x)
+        n_h = np.sum(h_valid_vec*x)
+        n_c = np.sum(c_valid_vec*x)
         hc = n_h/n_c
         cur_res.append(hc)
 
-        # Sum = 1
-        x_sum = np.sum(beta*x)
-        cur_res.append(x_sum)
+        # Sum constraint
+        cur_res.append(np.sum(x))
 
         cur_res = np.transpose(np.atleast_2d(cur_res))
 

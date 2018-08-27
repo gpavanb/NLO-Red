@@ -25,7 +25,7 @@ fuel = 'CH3OCH3'
 n2_o2_ratio = 3.76
 
 # Threshold value for Zero
-threshold = 1e-3
+threshold = 0.05
 
 # Error tolerances
 tolerance_mw = 0.05

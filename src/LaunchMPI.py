@@ -84,8 +84,8 @@ if __name__ == '__main__':
         print num_valid
 
         logging.info('Species for optimization: %s' % str(num_valid))
-        # Indicator variable + Mole fractions
-        noptim = num_valid + num_valid
+        # Last species assumed to remove equality constraint
+        noptim = num_valid - 1
         logging.info('Number of variables for optimization: %s' % noptim)
 
         # Species index build
@@ -163,10 +163,9 @@ if __name__ == '__main__':
             c_valid_vec.append(gas.n_atoms(sp_index,'C'))
         tolerances.append(up.tolerance_hc)
 
-        # Sum = 1
-        quantityrefs.append(1.0)
-        # Sum tolerance is zero since equality constraint
-        tolerances.append(0.0) 
+        # Sum constraint
+        quantityrefs.append(0.0)
+        tolerances.append(0.0)
 
         # # Constructing AI cases
         # nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
@@ -192,6 +191,8 @@ if __name__ == '__main__':
 
         # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
+        tolerances[-1] = 1.0
+
 
         # TODO remove these global variables
         params = Param.Parameters()
@@ -224,6 +225,8 @@ if __name__ == '__main__':
         # Dummy value since constraints are positive 
         g_L = -5.0 * np.ones(ncon)
         g_U = tolerances
+        logging.info('Lower bounds: %s' % g_L)
+        logging.info('Upper bounds: %s' % g_U)
 
         # Non-zero Jacobian elements
         nnzj = ncon * noptim
@@ -264,30 +267,36 @@ if __name__ == '__main__':
             nlp.num_option('derivative_test_tol',1e-2)
 
             logging.info('Starting optimization')
-            xf, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
+            x, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
             nlp.close()
             logging.info('End optimization')
 
+            # Threshold
+            x_last = 1.0 - np.sum(x)
+            x = np.append(x,x_last)
+            x_unthreshold = x
+            beta = np.array([0 if y < up.threshold else 1 for y in x])
+            x = beta*x
+  
             # MW
-            beta = xf[0:num_valid]
-            x = xf[num_valid:]
-            mw = np.sum(mw_valid_vec*beta*x)
+            mw = np.sum(mw_valid_vec*x)
             logging.info('Final MW: %s' % mw) 
             
             # HC
-            n_h = np.sum(h_valid_vec*beta*x)
-            n_c = np.sum(c_valid_vec*beta*x)
+            n_h = np.sum(h_valid_vec*x)
+            n_c = np.sum(c_valid_vec*x)
             hc = n_h/n_c
             logging.info('Final HC: %s' % hc) 
 
             # Sum = 1
-            x_sum = np.sum(beta*x)
+            x_sum = np.sum(x)
             logging.info('Final sum: %s' % x_sum) 
  
+
             # Log final solution
             for k in range(num_valid):
                 logging.info('%s %s %s' %
-                            (valid_species[k], beta[k], x[k]))
+                            (valid_species[k], beta[k], x_unthreshold[k]))
 
         elif type_calc == 'VAL':
             # Validation case
