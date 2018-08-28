@@ -13,14 +13,16 @@ def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
     noptim = Global.params.noptim
     x = np.array(xf)
-    costfunc = 2.0 * np.sum(x*(1-x)) + np.sum(x*x)
+    costfunc = 1 - np.sum(x*x) - np.sum(x)*np.sum(x) + 2*np.sum(x)
+    #costfunc = 2.0 * np.sum(x*(1-x)) + np.sum(x*x)
     return costfunc
 
 def eval_grad_f(xf, user_data=None):
     logging.debug('Grad F evaluation')
     noptim = Global.params.noptim
     x = np.array(xf)
-    grad_f = 2.0 * (np.ones(noptim)-2*x) + 2*x
+    grad_f = 2.0*(1.0-np.sum(x))*np.ones(noptim) - 2*x 
+    # grad_f = 2.0 * (np.ones(noptim)-2*x) + 2*x
     return grad_f
 
 def eval_g(xf, user_data=None):
@@ -52,7 +54,7 @@ def eval_g(xf, user_data=None):
     quantities.append(hc)
 
     # Sum constraint
-    quantities.append(np.sum(x))
+    quantities.append(np.sum(xf))
 
     # # Asynchronous constraints
     # cases = Global.params.cases
@@ -107,7 +109,7 @@ def gradient_constraints(xf):
     cur_res.append(hc)
 
     # Sum constraint
-    cur_res.append(np.sum(x))
+    cur_res.append(np.sum(xf))
 
     initquantities = cur_res
 
@@ -118,6 +120,7 @@ def gradient_constraints(xf):
     for kx in range(noptim):
         xperturb = np.array(xf)
         xperturb[kx] += step
+        xfperturb = np.copy(xperturb)
         x_last = 1.0 - np.sum(xperturb)
         xperturb = np.append(xperturb,x_last)
        
@@ -136,7 +139,7 @@ def gradient_constraints(xf):
         cur_res.append(hc)
 
         # Sum constraint
-        cur_res.append(np.sum(x))
+        cur_res.append(np.sum(xfperturb))
 
         cur_res = np.transpose(np.atleast_2d(cur_res))
 
