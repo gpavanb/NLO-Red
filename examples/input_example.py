@@ -35,21 +35,28 @@ tolerance_hc = 0.005
 # Pressure
 P_ai = [1e5]
 # Temperature
-T_ai = [1200.0, 1400.0, 1600.0]
+# T_ai = [1200.0, 1400.0, 1600.0]
+T_ai = [1200.0]
 # Equivalence ratio
-phi_ai = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,
-          1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
+phi_ai = [1.0]
+# phi_ai = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,
+#          1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
 # Error tolerance
 tolerance_ai = 0.20
 
 # Flame cases
+P_fl = []
+T_fl = []
+phi_fl = []
+
+# Flame cases
 # Pressure
-P_fl = [1e5]
-# Temperature
-T_fl = [300.0]
-# Equivalence ratio
-phi_fl = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,
-          1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
+# P_fl = [1e5]
+# # Temperature
+# T_fl = [300.0]
+# # Equivalence ratio
+# phi_fl = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,
+#           1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
 # Error tolerance
 tolerance_fl = 0.05
 

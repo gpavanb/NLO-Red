@@ -65,7 +65,7 @@ if __name__ == '__main__':
             os.makedirs(up.directory)
 
         logfile = 'out.log'
-        verbosity = 20
+        verbosity = 10
         if hasattr(up, 'verbosity'):
             if up.verbosity == 'DEBUG':
                 verbosity = 10
@@ -123,6 +123,17 @@ if __name__ == '__main__':
         quantityrefs = []
         tolerances = []
 
+        # Group procs in for flames
+        procs = range(0, comm.size-1)
+        partitioning = []
+        counting = -1
+        for k in range(len(procs)):
+          partitioning.append([-1])
+
+        logging.debug('Partitioning: %s' % str(partitioning))
+
+        Global.partitioning = partitioning
+
         # Read reference composition
         test_comp = up.test_comp
         palette = up.palette       
@@ -142,7 +153,8 @@ if __name__ == '__main__':
         for species in valid_species:
             sp_index = gas.species_index(species)
             mw_valid_vec.append(mw_full_vec[sp_index])
-        tolerances.append(up.tolerance_mw) 
+        tolerances.append(up.tolerance_mw)
+        print "Constructed MW" 
 
         # HC
         h_vec = []
@@ -162,37 +174,43 @@ if __name__ == '__main__':
             h_valid_vec.append(gas.n_atoms(sp_index,'H'))
             c_valid_vec.append(gas.n_atoms(sp_index,'C'))
         tolerances.append(up.tolerance_hc)
+        print "Constructed HC" 
 
         # Sum constraint
         quantityrefs.append(0.0)
         tolerances.append(0.0)
 
-        # # Constructing AI cases
-        # nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
-        # for P in up.P_ai:
-        #     for T in up.T_ai:
-        #         for phi in up.phi_ai:
-        #             case_id += 1
-        #             cur = RCV.ReactorCstVolume(
-        #                 Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
-        #             cur.case_id = case_id
-        #             cur.isflame = False
-        #             cases.append(cur)
-        #             tolerances.append(up.tolerance_ai)
+        # Constructing AI cases
+        case_id = 0
+        nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
+        for P in up.P_ai:
+            for T in up.T_ai:
+                for phi in up.phi_ai:
+                    case_id += 1
+                    cur = RCV.ReactorCstVolume(
+                        Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
+                    cur.case_id = case_id
+                    cur.isflame = False
+                    cases.append(cur)
+                    tolerances.append(up.tolerance_ai)
+        print "Constructed AI cases" 
 
         # # Computing reference cases
-        # tasks = []
-        # taskindex = -1
-        # for case in cases:
-        #     taskindex += 1
-        #     # TODO : Modify this for new problem
-        #     tasks.append((case, species_index_valid, np.ones(len(species_index_valid)), taskindex))
-        # quantityrefs = np.array(Par.tasklaunch(tasks))
+        tasks = []
+        taskindex = -1
+        print "Cases: ", cases
+        for case in cases:
+            taskindex += 1
+            # TODO : Modify this for new problem
+            tasks.append((case, taskindex))
+        print "Before launching: ", tasks
+        quantityrefs = np.array(Par.tasklaunch(tasks))
+        print "Done launching"
+        print "Computing reference cases"
 
         # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
         tolerances[-1] = 1.0
-
 
         # TODO remove these global variables
         params = Param.Parameters()
@@ -211,6 +229,8 @@ if __name__ == '__main__':
         params.threshold = up.threshold
         Global.params = params
 
+        print 'Number of cases: %i' % len(cases)
+        print 'Reference quantities: %s' % quantityrefs
         logging.info('Number of cases: %i' % len(cases))
         logging.info('Reference quantities: %s' % quantityrefs)
 
