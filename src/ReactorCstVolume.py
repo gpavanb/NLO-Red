@@ -112,13 +112,16 @@ class ReactorCstVolume(object):
         #sim.atol = 1e-7
         #sim.rtol = 1e-4
 
-        while curT1 < self.Ttarget:
+        while (curT1 < self.Ttarget):
             time = sim.step()
             print time
             curT0 = curT1
             curT1 = r.T
             time0 = time1
             time1 = time
+
+            if (time > Global.tMax):
+              return time
 
         weight = (self.Ttarget - curT0)/(curT1-curT0)
 

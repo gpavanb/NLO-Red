@@ -147,6 +147,8 @@ def gradient_constraints(xf):
 
     # Collecting results
     stack = np.empty((0,noptim),float)
+    print "Quantity refs: ", quantityrefs
+    print "Perturb quantities: ", perturbquantities
     for kcase in range(num_lwcon):
         grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
@@ -176,9 +178,10 @@ def gradient_constraints(xf):
     perturbquantities = results[len(cases):].reshape((len(cases), noptim))
 
     for kcase, case in enumerate(cases):
+        print kcase, len(cases)
         grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
-        stack = np.hstack((stack, grad))
+        stack = np.vstack((stack, grad))
 
     # Logging info
     logging.info('Gradient G done')
@@ -213,6 +216,6 @@ def gradient_constraints(xf):
         logging.info('Current vector')
         logging.info(str(x).replace('  ', ','))
 
-    logging.info('End Gradient PP')
+    logging.info('End Gradient constraints')
 
     return stack

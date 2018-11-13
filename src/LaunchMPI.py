@@ -49,6 +49,8 @@ if __name__ == '__main__':
 
     # Initializations and preliminaries
     Global.MPI = MPI
+    # Maximum ignition delay time
+    Global.tMax = 1.0
     comm = MPI.COMM_WORLD   # get MPI communicator object
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
@@ -209,7 +211,8 @@ if __name__ == '__main__':
             # TODO : Modify this for new problem
             tasks.append((case, x0, taskindex))
         print "Before launching: ", tasks
-        quantityrefs = np.array(Par.tasklaunch(tasks))
+        quantityrefs_new = np.array(Par.tasklaunch(tasks))
+        quantityrefs.append(quantityrefs_new)
         print "Done launching"
         print "Computing reference cases"
 
