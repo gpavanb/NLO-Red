@@ -56,22 +56,47 @@ class ReactorCstVolume(object):
                     curgas.set_multiplier(0.0, k)
         return
 
-    def getAI(self):
+    # Make private
+    def create_comp_string(self,x):
+        final_string = ''
 
+        for idx, compound in enumerate(Global.valid_species):
+            final_string += compound + ":" + str(x[idx])
+            if idx != len(x)-1:
+                final_string += ","
+  
+        print final_string
+        return final_string
+
+    # Make private
+    def set_gas_using_palette(self,x):
+        gas = Global.gas
+        comp_string = self.create_comp_string(x)
+        gas.TPX = self.Tin, self.P, comp_string
+        return comp_string
+
+    def getAI(self,x):
+        # Return 0 if invalid composition
+        if (x[-1] < 0.0):
+          return 0.0
+         
         gas = Global.gas
         ifuel = gas.species_index(self.fuel)
         io2 = gas.species_index('O2')
         in2 = gas.species_index('N2')
 
-        self.putMultiplier(gas)
+        #self.putMultiplier(gas)
 
-        x = np.zeros(gas.n_species)
-        x[ifuel] = self.phi
-        x[io2] = gas.n_atoms(self.fuel, 'C') + 0.25 * \
-            gas.n_atoms(self.fuel, 'H')
-        x[in2] = x[io2] * self.n2_o2_ratio
-
-        gas.TPX = self.Tin, self.P, x
+        # Set the species vector if unset
+        if (all(x == 0)):
+          x_full = np.zeros(gas.n_species)
+          x_full[ifuel] = self.phi
+          x_full[io2] = gas.n_atoms(self.fuel, 'C') + 0.25 * \
+              gas.n_atoms(self.fuel, 'H')
+          x_full[in2] = x_full[io2] * self.n2_o2_ratio
+          gas.TPX = self.Tin, self.P, x_full
+        else:
+          self.set_gas_using_palette(x) 
 
         # Create reactor network
         r = ct.Reactor(gas)
@@ -89,6 +114,7 @@ class ReactorCstVolume(object):
 
         while curT1 < self.Ttarget:
             time = sim.step()
+            print time
             curT0 = curT1
             curT1 = r.T
             time0 = time1
@@ -102,5 +128,5 @@ class ReactorCstVolume(object):
 
         return AItime
 
-    def getQuantity(self):
-        return self.getAI()
+    def getQuantity(self,x):
+        return self.getAI(x)

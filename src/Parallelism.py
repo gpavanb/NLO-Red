@@ -7,6 +7,7 @@ def enum(*sequential, **named):
     return type('Enum', (), enums)
 
 def tasklaunch(tasks):
+    print "Called tasklaunch with ", tasks
     MPI = Global.MPI
     comm = MPI.COMM_WORLD   # get MPI communicator object
     size = comm.size        # total number of processes
@@ -26,9 +27,9 @@ def tasklaunch(tasks):
 
     while tasks_done < len(tasks):
         data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
-        print "Received"
         source = status.Get_source()
         tag = status.Get_tag()
+        print "Received", data
 
         if tag == tags.READY:
             foundtask = False

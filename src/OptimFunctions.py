@@ -5,9 +5,9 @@ import sys
 import Parallelism as Par
 
 
-def getQuantityCase(case, species_index_valid, x):
-    case.storeMultiplier(species_index_valid, x)
-    return case.getQuantity()
+def getQuantityCase(case, x):
+    #case.storeMultiplier(species_index_valid, x)
+    return case.getQuantity(x)
 
 def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
@@ -56,19 +56,19 @@ def eval_g(xf, user_data=None):
     # Sum constraint
     quantities.append(np.sum(xf))
 
-    # # Asynchronous constraints
-    # cases = Global.params.cases
-    # quantityrefs = Global.params.quantityrefs
+    # Asynchronous constraints
+    cases = Global.params.cases
+    quantityrefs = Global.params.quantityrefs
 
-    # # Building Tasks
-    # tasks = []
-    # taskindex = -1
-    # for case in cases:
-    #     taskindex += 1
-    #     tasks.append((case, species_index_valid, x, taskindex))
+    # Building Tasks
+    tasks = []
+    taskindex = -1
+    for case in cases:
+        taskindex += 1
+        tasks.append((case, x, taskindex))
 
-    # # Retrieve array of results
-    # quantities = np.array(Par.tasklaunch(tasks))
+    # Retrieve array of results
+    quantities = np.array(Par.tasklaunch(tasks))
     return np.abs(quantities - quantityrefs)
 
 def gradient_constraints(xf):
@@ -152,15 +152,12 @@ def gradient_constraints(xf):
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
         stack = np.vstack((stack, grad))
 
-    return stack
-    # sys.exit(0)
-
-    # # Building tasks
-    # tasks = []
-    # taskindex = -1
-    # for case in cases:
-    #     taskindex += 1
-    #     tasks.append((case, species_index_valid, x, taskindex))
+    # Building tasks
+    tasks = []
+    taskindex = -1
+    for case in cases:
+        taskindex += 1
+        tasks.append((case, x, taskindex))
 
     # Perturbed quantities
     step = 1e-2
@@ -169,7 +166,7 @@ def gradient_constraints(xf):
             xperturb = np.array(x)
             xperturb[kx] += step
             taskindex += 1
-            tasks.append((case, species_index_valid, xperturb, taskindex))
+            tasks.append((case, xperturb, taskindex))
 
     # Collecting gradient results
     logging.debug('Collecting Grad G results')

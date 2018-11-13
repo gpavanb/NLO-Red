@@ -42,6 +42,7 @@ if __name__ == '__main__':
 
     # Cantera gas phase
     Global.gas = ct.Solution(up.mechanism)
+    Global.valid_species = [line.rstrip(' \n') for line in open(up.spec_list)]
 
     # Define MPI message tags
     tags = Par.enum('READY', 'DONE', 'EXIT', 'START', 'SLEEP', 'WAKEUP')
@@ -78,7 +79,7 @@ if __name__ == '__main__':
         gas = Global.gas
 
         # Load list of valid species
-        valid_species = [line.rstrip(' \n') for line in open(up.spec_list)]
+        valid_species = Global.valid_species
         print valid_species
         num_valid = len(valid_species)
         print num_valid
@@ -195,14 +196,18 @@ if __name__ == '__main__':
                     tolerances.append(up.tolerance_ai)
         print "Constructed AI cases" 
 
-        # # Computing reference cases
+        # Computing reference cases
         tasks = []
         taskindex = -1
         print "Cases: ", cases
+
+        # Construct reference x
+        x0 = np.zeros(len(Global.valid_species))
+
         for case in cases:
             taskindex += 1
             # TODO : Modify this for new problem
-            tasks.append((case, taskindex))
+            tasks.append((case, x0, taskindex))
         print "Before launching: ", tasks
         quantityrefs = np.array(Par.tasklaunch(tasks))
         print "Done launching"
@@ -311,7 +316,6 @@ if __name__ == '__main__':
             # Sum = 1
             x_sum = np.sum(x)
             logging.info('Final sum: %s' % x_sum) 
- 
 
             # Log final solution
             for k in range(num_valid):
