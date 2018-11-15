@@ -6,6 +6,7 @@ import time
 import os
 import numpy as np
 from mpi4py import MPI
+import support
 
 import cantera as ct
 
@@ -82,7 +83,6 @@ if __name__ == '__main__':
 
         # Load list of valid species
         valid_species = Global.valid_species
-        print valid_species
         num_valid = len(valid_species)
         print num_valid
 
@@ -201,11 +201,11 @@ if __name__ == '__main__':
         # Computing reference cases
         tasks = []
         taskindex = -1
-        print "Cases: ", cases
 
-        # Construct reference x
+        # Construct reference x (setting to zero will default IDT)
         x0 = np.zeros(len(Global.valid_species))
 
+        print "Computing reference cases"
         for case in cases:
             taskindex += 1
             # TODO : Modify this for new problem
@@ -214,7 +214,6 @@ if __name__ == '__main__':
         quantityrefs_new = np.array(Par.tasklaunch(tasks))
         quantityrefs.append(quantityrefs_new)
         print "Done launching"
-        print "Computing reference cases"
 
         # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
@@ -266,9 +265,10 @@ if __name__ == '__main__':
             x0 = np.array(up.x0)
             logging.info('Initializing x0 from input file')
         else:
-            x0 = np.ones(noptim)
-            x0[num_valid+1:] = 0.0
-            logging.info('Initializing x0 from one')
+            # Set palette as x0
+            x0 = support.vec_from_palette(valid_species,palette,test_comp)
+            #x0[num_valid+1:] = 0.0
+            logging.info('Initializing x0 from palette')
 
         if not(len(x0) == noptim):
             logging.error('Wrong length for x0')
@@ -288,6 +288,7 @@ if __name__ == '__main__':
         if type_calc == 'OPT':
             # Optimization case
             logging.debug('IPOpt initialization')
+            print "Creating problem..."
             nlp = pyipopt.create(nvar, x_L, x_U, ncon, g_L, g_U, nnzj, nnzh,
                                  OptFn.eval_f, OptFn.eval_grad_f, OptFn.eval_g, eval_jac_g_wrapper)
 
@@ -295,6 +296,7 @@ if __name__ == '__main__':
             nlp.num_option('derivative_test_tol',1e-2)
 
             logging.info('Starting optimization')
+            print "x0 before pyipopt:", x0
             x, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
             nlp.close()
             logging.info('End optimization')

@@ -11,6 +11,7 @@ def getQuantityCase(case, x):
 
 def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
+    print "Eval f", xf
     noptim = Global.params.noptim
     x = np.array(xf)
     costfunc = 1 - np.sum(x*x) - np.sum(x)*np.sum(x) + 2*np.sum(x)
@@ -18,6 +19,7 @@ def eval_f(xf, user_data=None):
     return costfunc
 
 def eval_grad_f(xf, user_data=None):
+    print "Eval grad f", xf
     logging.debug('Grad F evaluation')
     noptim = Global.params.noptim
     x = np.array(xf)
@@ -26,6 +28,7 @@ def eval_grad_f(xf, user_data=None):
     return grad_f
 
 def eval_g(xf, user_data=None):
+    print "Eval g", xf
     logging.debug('G evaluation')
     # Retrieve global parameters
     # species_index_damp = Global.params.species_index_damp
@@ -72,6 +75,7 @@ def eval_g(xf, user_data=None):
     return np.abs(quantities - quantityrefs)
 
 def gradient_constraints(xf):
+    print "Eval grad g", xf
     logging.debug('Grad G evaluation')
     # Retrieve global variables
     noptim = Global.params.noptim

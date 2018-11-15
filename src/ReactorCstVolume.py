@@ -65,7 +65,6 @@ class ReactorCstVolume(object):
             if idx != len(x)-1:
                 final_string += ","
   
-        print final_string
         return final_string
 
     # Make private
@@ -114,7 +113,6 @@ class ReactorCstVolume(object):
 
         while (curT1 < self.Ttarget):
             time = sim.step()
-            print time
             curT0 = curT1
             curT1 = r.T
             time0 = time1
