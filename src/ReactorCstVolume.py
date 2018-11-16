@@ -114,7 +114,6 @@ class ReactorCstVolume(object):
 
         while (curT1 < self.Ttarget):
             time = sim.step()
-            print time
             curT0 = curT1
             curT1 = r.T
             time0 = time1

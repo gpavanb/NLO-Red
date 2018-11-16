@@ -3,6 +3,7 @@ import imp
 import pyipopt
 import logging
 import time
+import support
 import os
 import numpy as np
 from mpi4py import MPI
@@ -50,7 +51,7 @@ if __name__ == '__main__':
     # Initializations and preliminaries
     Global.MPI = MPI
     # Maximum ignition delay time
-    Global.tMax = 1.0
+    Global.tMax = 0.4
     comm = MPI.COMM_WORLD   # get MPI communicator object
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
@@ -266,9 +267,9 @@ if __name__ == '__main__':
             x0 = np.array(up.x0)
             logging.info('Initializing x0 from input file')
         else:
-            x0 = np.ones(noptim)
-            x0[num_valid+1:] = 0.0
-            logging.info('Initializing x0 from one')
+            x0 = support.vec_from_palette(valid_species,palette,test_comp)
+            print "x0:", x0
+            logging.info('Initializing x0 from palette')
 
         if not(len(x0) == noptim):
             logging.error('Wrong length for x0')
@@ -291,8 +292,8 @@ if __name__ == '__main__':
             nlp = pyipopt.create(nvar, x_L, x_U, ncon, g_L, g_U, nnzj, nnzh,
                                  OptFn.eval_f, OptFn.eval_grad_f, OptFn.eval_g, eval_jac_g_wrapper)
 
-            nlp.str_option('derivative_test','first-order')
-            nlp.num_option('derivative_test_tol',1e-2)
+            #nlp.str_option('derivative_test','first-order')
+            #nlp.num_option('derivative_test_tol',1e-2)
 
             logging.info('Starting optimization')
             x, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
