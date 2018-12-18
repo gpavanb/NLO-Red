@@ -213,7 +213,7 @@ if __name__ == '__main__':
             tasks.append((case, x0, taskindex))
         print "Beginning launched"
         quantityrefs_new = np.array(Par.tasklaunch(tasks))
-        quantityrefs.append(quantityrefs_new[0])
+        quantityrefs.extend(quantityrefs_new)
         print "Computed reference cases"
 
         # RHS of constraint inequality
@@ -324,6 +324,8 @@ if __name__ == '__main__':
             for k in range(num_valid):
                 logging.info('%s %s %s' %
                             (valid_species[k], beta[k], x_unthreshold[k]))
+
+            exit
 
         elif type_calc == 'VAL':
             # Validation case

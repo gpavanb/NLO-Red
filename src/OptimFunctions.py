@@ -68,7 +68,8 @@ def eval_g(xf, user_data=None):
         tasks.append((case, x, taskindex))
 
     # Retrieve array of results
-    quantities = np.array(Par.tasklaunch(tasks))
+    quantities_new = np.array(Par.tasklaunch(tasks))
+    quantities.extend(quantities_new)
     return np.abs(quantities - quantityrefs)
 
 def gradient_constraints(xf):
@@ -145,7 +146,6 @@ def gradient_constraints(xf):
 
     # Collecting results
     stack = np.empty((0,noptim),float)
-    print "Quantity refs: ", quantityrefs
     for kcase in range(num_lwcon):
         grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
@@ -171,12 +171,13 @@ def gradient_constraints(xf):
     logging.debug('Collecting Grad G results')
 
     results = np.array(Par.tasklaunch(tasks))
-    initquantities = results[0:len(cases)]
-    perturbquantities = results[len(cases):].reshape((len(cases), noptim))
-    print "Perturb quantities: ", perturbquantities
+    initquantities_new = results[0:len(cases)]
+    initquantities.extend(initquantities_new)
+    perturb_new = results[len(cases):].reshape((len(cases), noptim))
+    if (len(cases) != 0):
+        perturbquantities = np.vstack((perturbquantities,perturb_new))
 
     for kcase, case in enumerate(cases):
-        print kcase, len(cases)
         grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
         stack = np.vstack((stack, grad))
