@@ -290,6 +290,8 @@ if __name__ == '__main__':
             nlp = pyipopt.create(nvar, x_L, x_U, ncon, g_L, g_U, nnzj, nnzh,
                                  OptFn.eval_f, OptFn.eval_grad_f, OptFn.eval_g, eval_jac_g_wrapper)
 
+            nlp.num_option('tol',1e-3)
+            nlp.num_option('acceptable_tol',1e-3)
             #nlp.str_option('derivative_test','first-order')
             #nlp.num_option('derivative_test_tol',1e-2)
 
