@@ -5,7 +5,7 @@ directory = 'FLAMES'
 palette = ['MCYC6','C7H8','C6H6','IC8H18','NC12H26']
 
 # Reference composition
-test_comp = [0.1, 0.1, 0.01, 0.055, 0.735]
+test_comp = [0.1, 0.1, 0.01, 0.055, 0.725]
 
 # Species list
 spec_list = 'data/POLIMI_List.txt'

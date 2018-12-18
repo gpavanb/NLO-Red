@@ -65,7 +65,7 @@ class ReactorCstVolume(object):
             if idx != len(x)-1:
                 final_string += ","
   
-        print final_string
+        #print final_string
         return final_string
 
     # Make private

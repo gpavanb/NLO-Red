@@ -7,7 +7,6 @@ def enum(*sequential, **named):
     return type('Enum', (), enums)
 
 def tasklaunch(tasks):
-    print "Called tasklaunch with ", tasks
     MPI = Global.MPI
     comm = MPI.COMM_WORLD   # get MPI communicator object
     size = comm.size        # total number of processes
@@ -16,7 +15,6 @@ def tasklaunch(tasks):
     tags = enum('READY', 'DONE', 'EXIT', 'START', 'SLEEP', 'WAKEUP')
     partitioning = Global.partitioning
 
-    print "Sending comm"
     for nt in range(comm.size-1):
         comm.send(None, dest=nt+1, tag=tags.WAKEUP)
     tasks_done = 0
@@ -29,7 +27,6 @@ def tasklaunch(tasks):
         data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
         source = status.Get_source()
         tag = status.Get_tag()
-        print "Received", data
 
         if tag == tags.READY:
             foundtask = False

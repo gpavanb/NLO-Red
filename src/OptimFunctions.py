@@ -13,7 +13,7 @@ def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
     noptim = Global.params.noptim
     x = np.array(xf)
-    costfunc = 1 - np.sum(x*x) - np.sum(x)*np.sum(x) + 2*np.sum(x)
+    costfunc = 1.0 - np.sum(x*x) - np.sum(x)*np.sum(x) + 2*np.sum(x)
     #costfunc = 2.0 * np.sum(x*(1-x)) + np.sum(x*x)
     return costfunc
 
@@ -140,15 +140,12 @@ def gradient_constraints(xf):
 
         # Sum constraint
         cur_res.append(np.sum(xfperturb))
-
         cur_res = np.transpose(np.atleast_2d(cur_res))
-
         perturbquantities = np.hstack((perturbquantities,cur_res))
 
     # Collecting results
     stack = np.empty((0,noptim),float)
     print "Quantity refs: ", quantityrefs
-    print "Perturb quantities: ", perturbquantities
     for kcase in range(num_lwcon):
         grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
                 - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
@@ -176,6 +173,7 @@ def gradient_constraints(xf):
     results = np.array(Par.tasklaunch(tasks))
     initquantities = results[0:len(cases)]
     perturbquantities = results[len(cases):].reshape((len(cases), noptim))
+    print "Perturb quantities: ", perturbquantities
 
     for kcase, case in enumerate(cases):
         print kcase, len(cases)
