@@ -54,7 +54,7 @@ def eval_g(xf, user_data=None):
     quantities.append(hc)
 
     # Sum constraint
-    quantities.append(np.sum(xf))
+    quantities.append(np.sum(xf)-1.0)
 
     # Asynchronous constraints
     cases = Global.params.cases
@@ -110,7 +110,7 @@ def gradient_constraints(xf):
     cur_res.append(hc)
 
     # Sum constraint
-    cur_res.append(np.sum(xf))
+    cur_res.append(np.sum(xf)-1.0)
 
     initquantities = cur_res
 
@@ -189,12 +189,15 @@ def gradient_constraints(xf):
     logging.info('Current sum(x)')
     logging.info(str(np.sum(x)))
     logging.info('Current distance vector')
-    logging.info(str(np.abs(initquantities-quantityrefs)/quantityrefs))
+    logging.info(str(np.abs(initquantities-quantityrefs)))
 
     candidatecheck = True
     errortab = np.abs(initquantities-quantityrefs)
     for kerror, error in enumerate(errortab):
         # logging.info( 'Error %s %s %s'%( kerror, error, tolerances[kerror] ) )
+        # Skip check for sum constraint
+        if (tolerances[kerror] == 0):
+            continue
         if error > tolerances[kerror]*1.1:
             candidatecheck = False
     if candidatecheck:

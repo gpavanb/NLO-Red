@@ -218,7 +218,6 @@ if __name__ == '__main__':
 
         # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
-        tolerances[-1] = 1.0
 
         # TODO remove these global variables
         params = Param.Parameters()
