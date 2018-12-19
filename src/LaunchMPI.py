@@ -218,6 +218,9 @@ if __name__ == '__main__':
 
         # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
+        # Relax sum constraint
+        idx_sum = 2
+        tolerances[idx_sum] = up.sum_relax
 
         # TODO remove these global variables
         params = Param.Parameters()

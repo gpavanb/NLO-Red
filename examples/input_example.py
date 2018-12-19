@@ -31,6 +31,9 @@ threshold = 0.05
 tolerance_mw = 0.05
 tolerance_hc = 0.005
 
+# Sum relaxation
+sum_relax = 1e-3
+
 # Ai cases
 # Pressure
 P_ai = [1e5]
