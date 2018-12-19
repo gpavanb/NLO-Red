@@ -140,7 +140,7 @@ def gradient_constraints(xf):
         cur_res.append(hc)
 
         # Sum constraint
-        cur_res.append(np.sum(xfperturb))
+        cur_res.append(np.sum(xfperturb)-1.0)
         cur_res = np.transpose(np.atleast_2d(cur_res))
         perturbquantities = np.hstack((perturbquantities,cur_res))
 
