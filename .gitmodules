@@ -1,0 +1,3 @@
+[submodule "src/GC_Python"]
+	path = src/GC_Python
+	url = https://github.com/gpavanb/GC_Python.git
