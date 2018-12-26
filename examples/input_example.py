@@ -43,12 +43,12 @@ tolerance_dc = 0.0125
 
 # Ai cases
 # Pressure
-P_ai = [1e5]
+P_ai = []
 # Temperature
 # T_ai = [1200.0, 1400.0, 1600.0]
-T_ai = [1200.0]
+T_ai = []
 # Equivalence ratio
-phi_ai = [1.0]
+phi_ai = []
 # phi_ai = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,
 #          1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
 # Error tolerance

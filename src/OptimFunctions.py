@@ -12,17 +12,32 @@ def getQuantityCase(case, x):
 def eval_f(xf, user_data=None):
     logging.debug('F evaluation')
     noptim = Global.params.noptim
-    x = np.array(xf)
-    costfunc = 1.0 - np.sum(x*x) - np.sum(x)*np.sum(x) + 2*np.sum(x)
+    x = np.array(xf)/sum(np.array(xf))
+    costfunc = 2.0 - np.sum(x*x) # 1.0 - np.sum(x*x) - np.sum(x)*np.sum(x) + 2*np.sum(x)
     #costfunc = 2.0 * np.sum(x*(1-x)) + np.sum(x*x)
     return costfunc
 
 def eval_grad_f(xf, user_data=None):
     logging.debug('Grad F evaluation')
     noptim = Global.params.noptim
-    x = np.array(xf)
-    grad_f = 2.0*(1.0-np.sum(x))*np.ones(noptim) - 2*x 
-    # grad_f = 2.0 * (np.ones(noptim)-2*x) + 2*x
+    num_lwcon = Global.params.num_lwcon
+ 
+    x = xf/np.sum(xf)
+    cost = 2.0 - np.sum(x*x)
+
+    # Evaluate gradient using perturbation
+    perturbquantities = np.empty(noptim,float)
+    step = 1e-2
+    results = []
+    for kx in range(noptim):
+        xp = np.copy(xf)
+        xp[kx] += step
+        xp = xp/np.sum(xp)
+       
+        perturbquantities[kx] = 2.0 - np.sum(xp*xp)
+
+    grad_f = (perturbquantities-cost)/step 
+
     return grad_f
 
 def eval_g(xf, user_data=None):
@@ -37,12 +52,10 @@ def eval_g(xf, user_data=None):
     num_valid = Global.params.num_valid
 
     quantities = []
-    quantityrefs = Global.params.quantityrefs
-  
+ 
     # Lightweight constraints
-    x = np.array(xf)
-    x_last = 1.0 - np.sum(x)
-    x = np.append(x,x_last)
+    x = np.copy(xf)
+    x = x/np.sum(x)
     # MW
     mw = np.sum(mw_valid_vec*x)
     quantities.append(mw)
@@ -52,9 +65,6 @@ def eval_g(xf, user_data=None):
     n_c = np.sum(c_valid_vec*x)
     hc = n_h/n_c
     quantities.append(hc)
-
-    # Sum constraint
-    quantities.append(np.sum(xf)-1.0)
 
     # Asynchronous constraints
     cases = Global.params.cases
@@ -96,9 +106,9 @@ def gradient_constraints(xf):
     cur_res = []
 
     # Lightweight constraints
-    x = np.array(xf)
-    x_last = 1.0 - np.sum(x)
-    x = np.append(x,x_last)
+    x_orig = np.copy(xf)
+    x_orig = x_orig/np.sum(x_orig)
+    x = np.copy(x_orig)
     # MW
     mw = np.sum(mw_valid_vec*x)
     cur_res.append(mw)
@@ -109,26 +119,21 @@ def gradient_constraints(xf):
     hc = n_h/n_c
     cur_res.append(hc)
 
-    # Sum constraint
-    cur_res.append(np.sum(xf)-1.0)
-
     initquantities = cur_res
-
+ 
     # Compute perturbations
     perturbquantities = np.empty((num_lwcon,0),float)
-    step = 1e-2
+    step = 1e-5
     results = []
     for kx in range(noptim):
-        xperturb = np.array(xf)
+        xperturb = np.copy(xf)
         xperturb[kx] += step
-        xfperturb = np.copy(xperturb)
-        x_last = 1.0 - np.sum(xperturb)
-        xperturb = np.append(xperturb,x_last)
+        xperturb = xperturb/np.sum(xperturb)
        
         cur_res = []
 
         # Lightweight constraints
-        x = xperturb
+        x = np.copy(xperturb)
         # MW
         mw = np.sum(mw_valid_vec*x)
         cur_res.append(mw)
@@ -139,8 +144,7 @@ def gradient_constraints(xf):
         hc = n_h/n_c
         cur_res.append(hc)
 
-        # Sum constraint
-        cur_res.append(np.sum(xfperturb)-1.0)
+        # Append data
         cur_res = np.transpose(np.atleast_2d(cur_res))
         perturbquantities = np.hstack((perturbquantities,cur_res))
 
@@ -156,14 +160,15 @@ def gradient_constraints(xf):
     taskindex = -1
     for case in cases:
         taskindex += 1
-        tasks.append((case, x, taskindex))
+        tasks.append((case, x_orig, taskindex))
 
     # Perturbed quantities
-    step = 1e-2
+    step = 1e-5
     for kcase, case in enumerate(cases):
         for kx in range(noptim):
-            xperturb = np.array(x)
+            xperturb = np.copy(xf)
             xperturb[kx] += step
+            xperturb = xperturb/np.sum(xperturb)
             taskindex += 1
             tasks.append((case, xperturb, taskindex))
 

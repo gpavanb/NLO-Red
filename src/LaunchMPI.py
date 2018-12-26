@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
         logging.info('Species for optimization: %s' % str(num_valid))
         # Last species assumed to remove equality constraint
-        noptim = num_valid - 1
+        noptim = num_valid
         logging.info('Number of variables for optimization: %s' % noptim)
 
         # Species index build
@@ -147,7 +147,7 @@ if __name__ == '__main__':
         palette = up.palette
  
         # Lightweight constraints reference quantities
-        num_lwcon = 3
+        num_lwcon = 2
         # MW
         mw_vec = []
         mw_valid_vec = []
@@ -183,10 +183,6 @@ if __name__ == '__main__':
             c_valid_vec.append(gas.n_atoms(sp_index,'C'))
         tolerances.append(up.tolerance_hc)
         print "Constructed HC" 
-
-        # Sum constraint
-        quantityrefs.append(0.0)
-        tolerances.append(0.0)
 
         # Constructing AI cases
         case_id = 0
@@ -233,9 +229,6 @@ if __name__ == '__main__':
 
         # RHS of constraint inequality
         tolerances = np.array(quantityrefs) * np.array(tolerances)
-        # Relax sum constraint
-        idx_sum = 2
-        tolerances[idx_sum] = up.sum_relax
 
         # TODO remove these global variables
         params = Param.Parameters()
@@ -310,8 +303,9 @@ if __name__ == '__main__':
 
             nlp.num_option('tol',1e-3)
             nlp.num_option('acceptable_tol',1e-3)
-            #nlp.str_option('derivative_test','first-order')
-            #nlp.num_option('derivative_test_tol',1e-2)
+            nlp.num_option('derivative_test_perturbation',1e-5)
+            nlp.str_option('derivative_test','first-order')
+            nlp.num_option('derivative_test_tol',1e-2)
 
             logging.info('Starting optimization')
             x, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)
@@ -319,11 +313,9 @@ if __name__ == '__main__':
             logging.info('End optimization')
 
             # Threshold
-            x_last = 1.0 - np.sum(x)
-            x = np.append(x,x_last)
-            x_unthreshold = x
+            x_un = x/np.sum(x)
             beta = np.array([0 if y < up.threshold else 1 for y in x])
-            x = beta*x
+            x = beta*x/np.sum(x)
   
             # MW
             mw = np.sum(mw_valid_vec*x)
@@ -342,7 +334,7 @@ if __name__ == '__main__':
             # Log final solution
             for k in range(num_valid):
                 logging.info('%s %s %s' %
-                            (valid_species[k], beta[k], x_unthreshold[k]))
+                            (valid_species[k], beta[k], x_un[k]))
 
             sys.exit(0)
 

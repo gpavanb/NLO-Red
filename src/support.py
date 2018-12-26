@@ -23,4 +23,4 @@ def vec_from_palette(valid_species,palette,test_comp):
     idx_valid = valid_species.index(comp)
     ret[idx_valid] = test_comp[idx_palette]
 
-  return ret[:-1]
+  return ret
