@@ -2,10 +2,13 @@
 directory = 'FLAMES'
 
 # Reference palette
-palette = ['MCYC6','C7H8','C6H6','IC8H18','NC12H26']
+#palette = ['MCYC6','C7H8','C6H6','IC8H18','NC12H26']
+# Dryer
+palette = ['NPBENZ','NC12H26','IC8H18','TMBENZ']
 
 # Reference composition
-test_comp = [0.1, 0.1, 0.01, 0.055, 0.725]
+#test_comp = [0.1, 0.1, 0.01, 0.055, 0.725]
+test_comp = [0.404,0.295,0.073,0.218]
 
 # Species list
 spec_list = 'data/POLIMI_List.txt'
@@ -33,6 +36,10 @@ tolerance_hc = 0.005
 
 # Sum relaxation
 sum_relax = 1e-3
+
+# Distillation curve cases
+enable_dc = True
+tolerance_dc = 0.0125
 
 # Ai cases
 # Pressure

@@ -16,6 +16,7 @@ import Slave
 import Parameters as Param
 import OptimFunctions as OptFn
 import ReactorCstVolume as RCV
+import DistCurve as DC
 import OneDFlame as Flame
 
 
@@ -50,6 +51,9 @@ if __name__ == '__main__':
 
     # Initializations and preliminaries
     Global.MPI = MPI
+    Global.palette = up.palette
+    Global.test_comp = up.test_comp
+    Global.sum_relax = up.sum_relax       
     # Maximum ignition delay time
     Global.tMax = 0.1
     comm = MPI.COMM_WORLD   # get MPI communicator object
@@ -140,7 +144,7 @@ if __name__ == '__main__':
 
         # Read reference composition
         test_comp = up.test_comp
-        palette = up.palette       
+        palette = up.palette
  
         # Lightweight constraints reference quantities
         num_lwcon = 3
@@ -197,7 +201,18 @@ if __name__ == '__main__':
                     cur.isflame = False
                     cases.append(cur)
                     tolerances.append(up.tolerance_ai)
-        print "Constructed AI cases" 
+        if (nai != 0):
+            print "Constructed AI cases"
+
+        # Constructing DC cases
+        if (up.enable_dc):
+            case_id += 1
+            cur = DC.DistCurve('POLIMI_species_list')
+            cur.case_id = case_id
+            cur.isflame = False
+            cases.append(cur)
+            tolerances.append(up.tolerance_dc)
+            print "Constructed DC cases"
 
         # Computing reference cases
         tasks = []
@@ -329,7 +344,7 @@ if __name__ == '__main__':
                 logging.info('%s %s %s' %
                             (valid_species[k], beta[k], x_unthreshold[k]))
 
-            exit
+            sys.exit(0)
 
         elif type_calc == 'VAL':
             # Validation case
