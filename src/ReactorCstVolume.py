@@ -57,21 +57,37 @@ class ReactorCstVolume(object):
         return
 
     # Make private
-    def create_comp_string(self,x):
+    def create_comp_string(self,specList,x):
+        gas = Global.gas
         final_string = ''
 
-        for idx, compound in enumerate(Global.valid_species):
+        n_c_atoms = 0.0
+        n_h_atoms = 0.0
+        for idx, compound in enumerate(specList):
             final_string += compound + ":" + str(x[idx])
-            if idx != len(x)-1:
-                final_string += ","
+            final_string += ","
+            n_c_atoms += gas.n_atoms(compound,'C') * x[idx]
+            n_h_atoms += gas.n_atoms(compound,'H') * x[idx]
+
+        # Add oxidizer and nitrogen
+        xo2 = (n_c_atoms + 0.25 * n_h_atoms)/self.phi 
+        xn2 = xo2 * self.n2_o2_ratio
+        final_string += "O2:" + str(xo2) + ",N2:" + str(xn2)
   
         #print final_string
         return final_string
 
-    # Make private
-    def set_gas_using_palette(self,x):
+    def set_gas_using_palette(self):
         gas = Global.gas
-        comp_string = self.create_comp_string(x)
+        comp_string = self.create_comp_string(Global.palette,Global.test_comp)
+        gas.TPX = self.Tin, self.P, comp_string
+        print comp_string
+        return comp_string
+
+    # Make private
+    def set_gas_using_valid_species(self,x):
+        gas = Global.gas
+        comp_string = self.create_comp_string(Global.valid_species,x)
         gas.TPX = self.Tin, self.P, comp_string
         return comp_string
 
@@ -89,14 +105,9 @@ class ReactorCstVolume(object):
 
         # Set the species vector if unset
         if (all(x == 0)):
-          x_full = np.zeros(gas.n_species)
-          x_full[ifuel] = self.phi
-          x_full[io2] = gas.n_atoms(self.fuel, 'C') + 0.25 * \
-              gas.n_atoms(self.fuel, 'H')
-          x_full[in2] = x_full[io2] * self.n2_o2_ratio
-          gas.TPX = self.Tin, self.P, x_full
+          self.set_gas_using_palette()
         else:
-          self.set_gas_using_palette(x) 
+          self.set_gas_using_valid_species(x) 
 
         # Create reactor network
         r = ct.Reactor(gas)
@@ -118,7 +129,7 @@ class ReactorCstVolume(object):
             curT1 = r.T
             time0 = time1
             time1 = time
-
+ 
             if (time > Global.tMax):
               return time
 
