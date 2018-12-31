@@ -1,3 +1,6 @@
 [submodule "src/GC_Python"]
 	path = src/GC_Python
 	url = https://github.com/gpavanb/GC_Python.git
+[submodule "src/active_subspace"]
+	path = src/active_subspace
+	url = https://github.com/gpavanb/active_subspaces.git
