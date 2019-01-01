@@ -2,6 +2,7 @@
 directory = 'FLAMES'
 
 # Reference palette
+# Stanford A
 #palette = ['MCYC6','C7H8','C6H6','IC8H18','NC12H26']
 #test_comp = [0.1, 0.1, 0.01, 0.055, 0.735]
 # Dryer
@@ -39,11 +40,12 @@ sum_relax = 1e-3
 use_active_subspace = True
 
 # Distillation curve cases
-enable_dc = False
+enable_dc = True
 tolerance_dc = 0.0125
 
 # Ai cases
 # Pressure
+enable_idt = False
 P_ai = [1e5]
 # Temperature
 # T_ai = [1200.0, 1400.0, 1600.0]
@@ -72,8 +74,4 @@ phi_fl = []
 tolerance_fl = 0.05
 
 # Initial beta vector
-x0 = [0.02244707,0.02122669, 0.02100455, 0.0215207, 0.0215207, 0.02764953,
- 0.02509764, 0.02509764, 0.02665645, 0.0350278, 0.0339066, 0.0339066,
- 0.03000983, 0.03042798, 0.03962287, 0.04125298, 0.04125025, 0.04858254,
- 0.04732721, 0.04619811, 0.04351466, 0.05390394, 0.060274, 0.06022112,
- 0.07117585, 0.07117671]
+# x0 = 

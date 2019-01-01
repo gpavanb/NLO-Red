@@ -8,8 +8,10 @@ import GC_Python.distCurve as DC
 
 class DistCurve(object):
 
-    def __init__(self,spec_list):
+    def __init__(self,spec_list,**kwargs):
        self.valid_species_list = spec_list
+       self.dc_using_active = kwargs.get('dc_using_active',False)
+       self.rs = kwargs.get('rs',None)
 
        return
 
@@ -47,16 +49,8 @@ class DistCurve(object):
         elif (x[-1] > -Global.sum_relax and x[-1] < 0.0):
           x[-1] = 0.0
 
-        x_val = 0.0
-        # Set the species vector if unset
-        if (all(x == 0)):
-          # Corresponds to palette setting
-          x_val = self.set_using_palette()
-        else:
-          x_val = x
-
         # Calculate objective function
-        obj = DC.distMoleFrac(self.valid_species_list,x_val,'posf4658_simdist','fractional')
+        obj = DC.distMoleFrac(self.valid_species_list,x,'posf4658_simdist','fractional')
 
         return obj
 
@@ -76,4 +70,18 @@ class DistCurve(object):
       return x
 
     def getQuantity(self,x):
-        return self.getDistCurveError(x)
+        x_val = 0.0
+        # Set the species vector if unset
+        if (all(x == 0)):
+          # Corresponds to palette setting
+          x_val = self.set_using_palette()
+        else:
+          x_val = x
+
+        if (self.dc_using_active):
+          # Need at least 2d for active subspace response surface
+          x_2d = np.reshape(x_val,(1,len(x_val)))
+          ans_f, ans_g = self.rs.predict(x_2d,compgrad=False)
+          return ans_f[0][0] # Return one and only element
+        else:
+          return self.getDistCurveError(x_val)

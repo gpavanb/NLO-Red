@@ -142,4 +142,7 @@ class ReactorCstVolume(object):
         return AItime
 
     def getQuantity(self,x):
-        return self.getAI(x)
+        if (Global.idt_using_active):
+          return Global.rs_idt.predict(X)
+        else:
+          return self.getAI(x)

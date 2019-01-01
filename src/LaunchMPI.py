@@ -228,62 +228,65 @@ if __name__ == '__main__':
           #      case.isflame = False
 
           # Get f and df for DC
-          case_id = 0
-          case = DC.DistCurve('POLIMI_species_list')
-          case.case_id = case_id
-          case.isflame = False
+          if (up.enable_dc): 
+            case_id = 0
+            case = DC.DistCurve('POLIMI_species_list')
+            case.case_id = case_id
+            case.isflame = False
 
-          tasks = []
-          taskindex = -1
-          for kx in range(np.shape(X)[0]):
-              taskindex += 1
-              tasks.append((case, X[kx,:] , taskindex))
-          for kx in range(np.shape(grad_X)[0]):
-              taskindex += 1
-              tasks.append((case, grad_X[kx,:] , taskindex))
-          print "Launched tasks!"
-          res_quantities = np.array(Par.tasklaunch(tasks))
-          # Need 2D array for f
-          f = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
-          df = res_quantities[np.shape(X)[0]:].reshape((num_samples,ndim))
-          for i in xrange(num_samples):
-            df[i,:] = (df[i,:] - f[i])/step
+            tasks = []
+            taskindex = -1
+            for kx in range(np.shape(X)[0]):
+                taskindex += 1
+                tasks.append((case, X[kx,:] , taskindex))
+            for kx in range(np.shape(grad_X)[0]):
+                taskindex += 1
+                tasks.append((case, grad_X[kx,:] , taskindex))
+            print "Launched tasks!"
+            res_quantities = np.array(Par.tasklaunch(tasks))
+            # Need 2D array for f
+            f = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
+            df = res_quantities[np.shape(X)[0]:].reshape((num_samples,ndim))
+            for i in xrange(num_samples):
+              df[i,:] = (df[i,:] - f[i])/step
 
-          # Train response surface
-          ss = acs.subspaces.Subspaces()
-          ss.compute(df=df, sstype='AS')
-          print "Computed active subspace"
-          # set up the active variable domain
-          avd = acs.domains.BoundedActiveVariableDomain(ss)
-          # set up the maps between active and full variables
-          avm = acs.domains.BoundedActiveVariableMap(avd)
-          rs = acs.response_surfaces.ActiveSubspaceResponseSurface(avm)
-          # train with the existing runs
-          rs.train_with_data(X, f)
-          test_f, test_gf = rs.predict(X,compgrad=True)
+            # Train response surface
+            ss = acs.subspaces.Subspaces()
+            ss.compute(df=df, sstype='AS')
+            print "Computed active subspace"
+            # set up the active variable domain
+            avd = acs.domains.BoundedActiveVariableDomain(ss)
+            # set up the maps between active and full variables
+            avm = acs.domains.BoundedActiveVariableMap(avd)
+            rs = acs.response_surfaces.ActiveSubspaceResponseSurface(avm)
+            # train with the existing runs
+            rs.train_with_data(X, f)
+            test_f, test_gf = rs.predict(X,compgrad=True)
 
-          # Use response surface instead now
-
+            # Use response surface instead now
+            dc_using_active = True
+            rs_dc = rs
 
         # Constructing AI cases
-        nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
-        for P in up.P_ai:
-            for T in up.T_ai:
-                for phi in up.phi_ai:
-                    case_id += 1
-                    cur = RCV.ReactorCstVolume(
-                        Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
-                    cur.case_id = case_id
-                    cur.isflame = False
-                    cases.append(cur)
-                    tolerances.append(up.tolerance_ai)
-        if (nai != 0):
-            print "Constructed AI cases"
+        if (up.enable_idt):
+          nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
+          for P in up.P_ai:
+              for T in up.T_ai:
+                  for phi in up.phi_ai:
+                      case_id += 1
+                      cur = RCV.ReactorCstVolume(
+                          Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
+                      cur.case_id = case_id
+                      cur.isflame = False
+                      cases.append(cur)
+                      tolerances.append(up.tolerance_ai)
+          if (nai != 0):
+              print "Constructed AI cases"
 
         # Constructing DC cases
         if (up.enable_dc):
             case_id += 1
-            cur = DC.DistCurve('POLIMI_species_list')
+            cur = DC.DistCurve('POLIMI_species_list',dc_using_active=dc_using_active,rs=rs_dc)
             cur.case_id = case_id
             cur.isflame = False
             cases.append(cur)
