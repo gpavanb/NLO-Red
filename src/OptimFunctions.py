@@ -195,6 +195,7 @@ def gradient_constraints(xf):
     logging.info(str(np.sum(x)))
     logging.info('Current distance vector')
     logging.info(str(np.abs(initquantities-quantityrefs)))
+    print "IQ:", initquantities
 
     candidatecheck = True
     errortab = np.abs(initquantities-quantityrefs)

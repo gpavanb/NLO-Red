@@ -7,6 +7,7 @@ import support
 import os
 import numpy as np
 from mpi4py import MPI
+from sklearn.preprocessing import normalize
 
 import cantera as ct
 
@@ -18,6 +19,11 @@ import OptimFunctions as OptFn
 import ReactorCstVolume as RCV
 import DistCurve as DC
 import OneDFlame as Flame
+
+# Open active subspaces even without X11
+import matplotlib as mpt
+mpt.use('Agg')
+import active_subspaces as acs
 
 
 def eval_jac_g_wrapper(x, flag, user_data=None):
@@ -53,7 +59,8 @@ if __name__ == '__main__':
     Global.MPI = MPI
     Global.palette = up.palette
     Global.test_comp = up.test_comp
-    Global.sum_relax = up.sum_relax       
+    Global.sum_relax = up.sum_relax
+    Global.use_active_subspace = up.use_active_subspace       
     # Maximum ignition delay time
     Global.tMax = 0.1
     comm = MPI.COMM_WORLD   # get MPI communicator object
@@ -184,8 +191,81 @@ if __name__ == '__main__':
         tolerances.append(up.tolerance_hc)
         print "Constructed HC" 
 
+        # Check if active subspaces are being used
+        if (Global.use_active_subspace):
+          alpha = 2 # Oversampling factor
+          k = 6 # Maximum order
+          ndim = len(Global.valid_species)
+          num_samples = int(np.ceil(alpha*k*np.log(ndim)))
+          print "Total number of samples: ", num_samples
+          print "Total evaluations: ", num_samples*(ndim+1)
+
+          # Create a sample set of points
+          X = np.random.uniform(0.,1., size=(num_samples,ndim))
+          # Normalize points
+          X = normalize(X,axis=1,norm='l1')
+          
+          # Create gradient locations
+          # Evaluate gradient using perturbation
+          step = 1e-2
+          grad_X = np.empty((0,ndim))
+          for i in xrange(num_samples):
+            for j in xrange(ndim):
+              xp = np.copy(X[i,:])
+              xp[j] += step
+              grad_X = np.vstack((grad_X,xp))
+          grad_X = normalize(grad_X,axis=1,norm='l1')
+          
+          # Get f and df for IDT
+          # TODO : Currently supports only one in list
+          #case_id = 0
+          #for P in up.P_ai:
+          #  for T in up.T_ai:
+          #    for phi in up.phi_ai:
+          #      case =  RCV.ReactorCstVolume(
+          #           Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
+          #      case.case_id = case_id
+          #      case.isflame = False
+
+          # Get f and df for DC
+          case_id = 0
+          case = DC.DistCurve('POLIMI_species_list')
+          case.case_id = case_id
+          case.isflame = False
+
+          tasks = []
+          taskindex = -1
+          for kx in range(np.shape(X)[0]):
+              taskindex += 1
+              tasks.append((case, X[kx,:] , taskindex))
+          for kx in range(np.shape(grad_X)[0]):
+              taskindex += 1
+              tasks.append((case, grad_X[kx,:] , taskindex))
+          print "Launched tasks!"
+          res_quantities = np.array(Par.tasklaunch(tasks))
+          # Need 2D array for f
+          f = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
+          df = res_quantities[np.shape(X)[0]:].reshape((num_samples,ndim))
+          for i in xrange(num_samples):
+            df[i,:] = (df[i,:] - f[i])/step
+
+          # Train response surface
+          ss = acs.subspaces.Subspaces()
+          ss.compute(df=df, sstype='AS')
+          print "Computed active subspace"
+          # set up the active variable domain
+          avd = acs.domains.BoundedActiveVariableDomain(ss)
+          # set up the maps between active and full variables
+          avm = acs.domains.BoundedActiveVariableMap(avd)
+          rs = acs.response_surfaces.ActiveSubspaceResponseSurface(avm)
+          # train with the existing runs
+          rs.train_with_data(X, f)
+          test_f, test_gf = rs.predict(X,compgrad=True)
+
+          # Use response surface instead now
+
+
         # Constructing AI cases
-        case_id = 0
         nai = len(up.P_ai)*len(up.T_ai)*len(up.phi_ai)
         for P in up.P_ai:
             for T in up.T_ai:
