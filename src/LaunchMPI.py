@@ -215,21 +215,10 @@ if __name__ == '__main__':
               xp[j] += step
               grad_X = np.vstack((grad_X,xp))
           grad_X = normalize(grad_X,axis=1,norm='l1')
-          
-          # Get f and df for IDT
-          # TODO : Currently supports only one in list
-          #case_id = 0
-          #for P in up.P_ai:
-          #  for T in up.T_ai:
-          #    for phi in up.phi_ai:
-          #      case =  RCV.ReactorCstVolume(
-          #           Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
-          #      case.case_id = case_id
-          #      case.isflame = False
 
+          case_id = 0
           # Get f and df for DC
           if (up.enable_dc): 
-            case_id = 0
             case = DC.DistCurve('POLIMI_species_list')
             case.case_id = case_id
             case.isflame = False
@@ -242,7 +231,7 @@ if __name__ == '__main__':
             for kx in range(np.shape(grad_X)[0]):
                 taskindex += 1
                 tasks.append((case, grad_X[kx,:] , taskindex))
-            print "Launched tasks!"
+            print "Launched tasks for DC-AcS"
             res_quantities = np.array(Par.tasklaunch(tasks))
             # Need 2D array for f
             f = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
@@ -263,9 +252,49 @@ if __name__ == '__main__':
             rs.train_with_data(X, f)
             test_f, test_gf = rs.predict(X,compgrad=True)
 
+          # Get f and df for IDT
+          if (up.enable_idt): 
+            case_id += 1
+            # TODO : Only one IDT sample point supported
+            for P in up.P_ai:
+                for T in up.T_ai:
+                    for phi in up.phi_ai:
+                      case = RCV.ReactorCstVolume(
+                      Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
+                      case.case_id = case_id
+                      case.isflame = False
+            tasks = []
+            taskindex = -1
+            for kx in range(np.shape(X)[0]):
+                taskindex += 1
+                tasks.append((case, X[kx,:] , taskindex))
+            for kx in range(np.shape(grad_X)[0]):
+                taskindex += 1
+                tasks.append((case, grad_X[kx,:] , taskindex))
+            print "Launched tasks for IDT-AcS"
+            res_quantities = np.array(Par.tasklaunch(tasks))
+            # Need 2D array for f
+            f = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
+            df = res_quantities[np.shape(X)[0]:].reshape((num_samples,ndim))
+            for i in xrange(num_samples):
+              df[i,:] = (df[i,:] - f[i])/step
+
+            # Train response surface
+            ss_2 = acs.subspaces.Subspaces()
+            ss_2.compute(df=df, sstype='AS')
+            print "Computed active subspace for IDT"
+            # set up the active variable domain
+            avd_2 = acs.domains.BoundedActiveVariableDomain(ss_2)
+            # set up the maps between active and full variables
+            avm_2 = acs.domains.BoundedActiveVariableMap(avd_2)
+            rs_2 = acs.response_surfaces.ActiveSubspaceResponseSurface(avm_2)
+            # train with the existing runs
+            rs_2.train_with_data(X, f)
+            test_f, test_gf = rs_2.predict(X,compgrad=True)
+
             # Use response surface instead now
-            dc_using_active = True
-            rs_dc = rs
+            idt_using_active = True
+            rs_idt = rs_2
 
         # Constructing AI cases
         if (up.enable_idt):
@@ -275,7 +304,8 @@ if __name__ == '__main__':
                   for phi in up.phi_ai:
                       case_id += 1
                       cur = RCV.ReactorCstVolume(
-                          Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
+                          Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio,
+                          idt_using_active=idt_using_active,rs=rs_idt)
                       cur.case_id = case_id
                       cur.isflame = False
                       cases.append(cur)

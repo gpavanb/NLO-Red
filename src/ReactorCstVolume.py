@@ -6,7 +6,7 @@ import logging
 
 class ReactorCstVolume(object):
 
-    def __init__(self, gas, Tin, P, phi, fuel, n2_o2_ratio):
+    def __init__(self, gas, Tin, P, phi, fuel, n2_o2_ratio,**kwargs):
         self.Tin = Tin
         self.P = P
         self.phi = phi
@@ -28,6 +28,11 @@ class ReactorCstVolume(object):
         gas.equilibrate('UV')
         # Ignition time = 90% of the final temperature
         self.Ttarget = 0.9 * gas.T
+
+        # Using active subspaces
+        self.idt_using_active = kwargs.get('idt_using_active',False)
+        self.rs = kwargs.get('rs',None)
+
         return
 
     def storeMultiplier(self, species_index_exclude, species_index_damp, multipliers):
@@ -103,11 +108,6 @@ class ReactorCstVolume(object):
 
         #self.putMultiplier(gas)
 
-        # Set the species vector if unset
-        if (all(x == 0)):
-          self.set_gas_using_palette()
-        else:
-          self.set_gas_using_valid_species(x) 
 
         # Create reactor network
         r = ct.Reactor(gas)
@@ -142,7 +142,16 @@ class ReactorCstVolume(object):
         return AItime
 
     def getQuantity(self,x):
-        if (Global.idt_using_active):
-          return Global.rs_idt.predict(X)
+        # Set the species vector if unset
+        if (all(x == 0)):
+          self.set_gas_using_palette()
+        else:
+          self.set_gas_using_valid_species(x)
+
+        if (self.idt_using_active):
+          # Need at least 2d for active subspace response surface
+          x_2d = np.reshape(x,(1,len(x)))
+          ans_f, ans_g = self.rs.predict(x_2d,compgrad=False)
+          return ans_f[0][0] # Return one and only element
         else:
           return self.getAI(x)
