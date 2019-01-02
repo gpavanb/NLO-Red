@@ -250,38 +250,43 @@ if __name__ == '__main__':
             rs = acs.response_surfaces.ActiveSubspaceResponseSurface(avm)
             # train with the existing runs
             rs.train_with_data(X, f)
-            test_f, test_gf = rs.predict(X,compgrad=True)
+            test_f = rs.predict(X,compgrad=False)
+
+            # Use response surface instead now
+            dc_using_active = True
+            rs_dc = rs
 
           # Get f and df for IDT
+          # TODO : Remove this 2 suffix somehow
           if (up.enable_idt): 
             case_id += 1
             # TODO : Only one IDT sample point supported
             for P in up.P_ai:
                 for T in up.T_ai:
                     for phi in up.phi_ai:
-                      case = RCV.ReactorCstVolume(
+                      case2 = RCV.ReactorCstVolume(
                       Global.gas, T, P, phi, up.fuel, up.n2_o2_ratio)
-                      case.case_id = case_id
-                      case.isflame = False
+                      case2.case_id = case_id
+                      case2.isflame = False
             tasks = []
             taskindex = -1
             for kx in range(np.shape(X)[0]):
                 taskindex += 1
-                tasks.append((case, X[kx,:] , taskindex))
+                tasks.append((case2, X[kx,:] , taskindex))
             for kx in range(np.shape(grad_X)[0]):
                 taskindex += 1
-                tasks.append((case, grad_X[kx,:] , taskindex))
+                tasks.append((case2, grad_X[kx,:] , taskindex))
             print "Launched tasks for IDT-AcS"
             res_quantities = np.array(Par.tasklaunch(tasks))
             # Need 2D array for f
-            f = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
-            df = res_quantities[np.shape(X)[0]:].reshape((num_samples,ndim))
+            f_2 = res_quantities[0:np.shape(X)[0]].reshape((num_samples,1))
+            df_2 = res_quantities[np.shape(X)[0]:].reshape((num_samples,ndim))
             for i in xrange(num_samples):
-              df[i,:] = (df[i,:] - f[i])/step
+              df_2[i,:] = (df_2[i,:] - f_2[i])/step
 
             # Train response surface
             ss_2 = acs.subspaces.Subspaces()
-            ss_2.compute(df=df, sstype='AS')
+            ss_2.compute(df=df_2, sstype='AS')
             print "Computed active subspace for IDT"
             # set up the active variable domain
             avd_2 = acs.domains.BoundedActiveVariableDomain(ss_2)
@@ -289,8 +294,8 @@ if __name__ == '__main__':
             avm_2 = acs.domains.BoundedActiveVariableMap(avd_2)
             rs_2 = acs.response_surfaces.ActiveSubspaceResponseSurface(avm_2)
             # train with the existing runs
-            rs_2.train_with_data(X, f)
-            test_f, test_gf = rs_2.predict(X,compgrad=True)
+            rs_2.train_with_data(X, f_2)
+            test_f = rs_2.predict(X,compgrad=False)
 
             # Use response surface instead now
             idt_using_active = True
@@ -316,10 +321,10 @@ if __name__ == '__main__':
         # Constructing DC cases
         if (up.enable_dc):
             case_id += 1
-            cur = DC.DistCurve('POLIMI_species_list',dc_using_active=dc_using_active,rs=rs_dc)
-            cur.case_id = case_id
-            cur.isflame = False
-            cases.append(cur)
+            cur_2 = DC.DistCurve('POLIMI_species_list',dc_using_active=dc_using_active,rs=rs_dc)
+            cur_2.case_id = case_id
+            cur_2.isflame = False
+            cases.append(cur_2)
             tolerances.append(up.tolerance_dc)
             print "Constructed DC cases"
 

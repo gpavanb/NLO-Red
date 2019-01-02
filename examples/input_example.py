@@ -45,7 +45,7 @@ tolerance_dc = 0.0125
 
 # Ai cases
 # Pressure
-enable_idt = False
+enable_idt = True
 P_ai = [1e5]
 # Temperature
 # T_ai = [1200.0, 1400.0, 1600.0]
