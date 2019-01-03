@@ -207,7 +207,8 @@ if __name__ == '__main__':
           
           # Create gradient locations
           # Evaluate gradient using perturbation
-          step = 1e-2
+          Global.step = 1e-2
+          step = Global.step
           grad_X = np.empty((0,ndim))
           for i in xrange(num_samples):
             for j in xrange(ndim):
@@ -421,9 +422,9 @@ if __name__ == '__main__':
 
             nlp.num_option('tol',1e-3)
             nlp.num_option('acceptable_tol',1e-3)
-            #nlp.num_option('derivative_test_perturbation',1e-5)
-            #nlp.str_option('derivative_test','first-order')
-            #nlp.num_option('derivative_test_tol',1e-2)
+            nlp.num_option('derivative_test_perturbation',Global.step)
+            nlp.str_option('derivative_test','first-order')
+            nlp.num_option('derivative_test_tol',1e-2)
 
             logging.info('Starting optimization')
             x, zl, zu, constraint_multipliers, obj, status = nlp.solve(x0)

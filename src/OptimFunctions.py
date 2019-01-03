@@ -27,7 +27,7 @@ def eval_grad_f(xf, user_data=None):
 
     # Evaluate gradient using perturbation
     perturbquantities = np.empty(noptim,float)
-    step = 1e-2
+    step = Global.step
     results = []
     for kx in range(noptim):
         xp = np.copy(xf)
@@ -123,7 +123,7 @@ def gradient_constraints(xf):
  
     # Compute perturbations
     perturbquantities = np.empty((num_lwcon,0),float)
-    step = 1e-5
+    step = Global.step
     results = []
     for kx in range(noptim):
         xperturb = np.copy(xf)
@@ -163,7 +163,7 @@ def gradient_constraints(xf):
         tasks.append((case, x_orig, taskindex))
 
     # Perturbed quantities
-    step = 1e-5
+    step = Global.step
     for kcase, case in enumerate(cases):
         for kx in range(noptim):
             xperturb = np.copy(xf)
@@ -182,9 +182,10 @@ def gradient_constraints(xf):
     if (len(cases) != 0):
         perturbquantities = np.vstack((perturbquantities,perturb_new))
 
-    for kcase, case in enumerate(cases):
-        grad = (np.abs(perturbquantities[kcase, :]-quantityrefs[kcase])
-                - np.abs(initquantities[kcase]-quantityrefs[kcase]))/step
+    for kcase in xrange(len(cases)):
+        idx = kcase + num_lwcon # Only nonlinear constraints computed here
+        grad = (np.abs(perturbquantities[idx, :]-quantityrefs[idx])
+                - np.abs(initquantities[idx]-quantityrefs[idx]))/step
         stack = np.vstack((stack, grad))
 
     # Logging info
@@ -195,7 +196,6 @@ def gradient_constraints(xf):
     logging.info(str(np.sum(x)))
     logging.info('Current distance vector')
     logging.info(str(np.abs(initquantities-quantityrefs)))
-    print "IQ:", initquantities
 
     candidatecheck = True
     errortab = np.abs(initquantities-quantityrefs)
